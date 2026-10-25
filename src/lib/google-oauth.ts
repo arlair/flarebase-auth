@@ -48,8 +48,12 @@ export async function getAuthToken(
  * Verifies an Identity Platform ID token.
  * If the token is valid, the promise is fulfilled with the token's decoded claims; otherwise, the promise is rejected.
  * @param idToken An Identity Platform ID token
+ * @param projectId Firebase project the token must be issued for
  */
-export async function verifyIdToken(idToken: string): Promise<JWTPayload> {
+export async function verifyIdToken(
+  idToken: string,
+  projectId: string
+): Promise<JWTPayload> {
   //Fetch public keys
   //TODO: Public keys should be cached until they expire
   const res = await fetch(
@@ -63,6 +67,11 @@ export async function verifyIdToken(idToken: string): Promise<JWTPayload> {
   const publicKey = await importX509(certificate, 'RS256');
 
   //Verify JWT with public key
-  const { payload } = await jwtVerify(idToken, publicKey);
+  //Google signs tokens for every project, so the issuer and audience must be ours
+  const { payload } = await jwtVerify(idToken, publicKey, {
+    issuer: `https://securetoken.google.com/${projectId}`,
+    audience: projectId,
+  });
+  if (!payload.sub) throw Error('ID token has no subject');
   return payload;
 }
